@@ -1,0 +1,6 @@
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9fafb; }
+.app { padding: 1rem; }
+.tabs button { margin-right: 0.5rem; }
+.tabs .active { background: #0b5ed7; color: white; }
+textarea { width: 100%; min-height: 120px; margin: 0.5rem 0; }
+.output { background: #111; color: #0f0; padding: 1rem; min-height: 200px; white-space: pre-wrap; }
