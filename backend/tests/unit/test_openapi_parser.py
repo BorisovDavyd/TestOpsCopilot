@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT))
 from app.generation.api_tests import parse_openapi_spec, generate_api_tests_from_spec
@@ -20,7 +22,8 @@ paths:
     assert "/vms" in spec["paths"]
 
 
-def test_generate_api_tests_has_negative_case():
+@pytest.mark.asyncio
+async def test_generate_api_tests_has_negative_case():
     content = """
 openapi: 3.0.0
 paths:
@@ -32,6 +35,6 @@ paths:
         '401':
           description: unauth
     """
-    code = generate_api_tests_from_spec(content)
+    code = await generate_api_tests_from_spec(content)
     assert "negative" in code
     assert "401" in code

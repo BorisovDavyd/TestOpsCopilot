@@ -3,7 +3,7 @@
 Monorepo MVP combining FastAPI backend and React frontend to generate and validate manual and automated tests with Cloud.ru Evolution Foundation Model.
 
 ## Structure
-- `backend/`: FastAPI service with generation, validation, storage, and LLM client.
+- `backend/`: FastAPI service with generation, validation, storage, and Cloud.ru LLM client (generation endpoints call the external model when the API key is present, otherwise fall back to deterministic templates).
 - `frontend/`: React UI for triggering generation/validation and viewing history.
 - `docker/`: Dockerfiles for backend and frontend.
 - `examples/`: Sample inputs.

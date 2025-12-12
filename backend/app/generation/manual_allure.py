@@ -4,6 +4,11 @@ import json
 import textwrap
 from typing import List, Dict, Any
 
+from app.llm.client import CloudRuLLMClient
+from app.utils.logging import configure_logging
+
+logger = configure_logging()
+
 UI_FEATURE = "Cloud.ru Price Calculator"
 API_FEATURE = "Evolution Compute API"
 
@@ -59,7 +64,24 @@ def _render_manual_case(
     return textwrap.dedent(block)
 
 
-def generate_ui_manual_cases(requirements: str) -> str:
+async def _maybe_llm(prompt: str, fallback: str) -> str:
+    try:
+        client = CloudRuLLMClient()
+        content = await client.chat_completion(
+            messages=[
+                {"role": "system", "content": "You are a QA lead generating Allure TestOps manual tests in Python. Output only code."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=4000,
+        )
+        if content and any(dec in content for dec in ["@allure.manual", "@pytest.mark.manual"]):
+            return content
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("LLM generation fallback engaged: %s", exc)
+    return fallback
+
+
+async def generate_ui_manual_cases(requirements: str) -> str:
     scenarios = [
         "Verify landing page shows calculator entry point",
         "Add service button opens configurator",
@@ -115,7 +137,14 @@ def generate_ui_manual_cases(requirements: str) -> str:
                 suite="manual-ui",
             )
         )
-    return "\n\n".join(body)
+    fallback = "\n\n".join(body)
+    prompt = (
+        "Generate 15+ Allure manual UI test cases for a Cloud.ru price calculator. "
+        "Follow AAA with allure.step, include decorators: @allure.manual, @pytest.mark.manual, @allure.title, @allure.tag, "
+        "@allure.label(owner/priority), @allure.feature, @allure.story, @allure.suite. "
+        f"Requirements: {requirements}"
+    )
+    return await _maybe_llm(prompt, fallback)
 
 
 def _safe_load(content: str) -> Dict[str, Any]:
@@ -130,7 +159,7 @@ def _safe_load(content: str) -> Dict[str, Any]:
             return {}
 
 
-def generate_api_manual_cases(openapi_content: str, focus: List[str] | None = None) -> str:
+async def generate_api_manual_cases(openapi_content: str, focus: List[str] | None = None) -> str:
     spec = _safe_load(openapi_content)
     focus = focus or ["vms", "disks", "flavors"]
     paths = spec.get("paths", {}) if isinstance(spec, dict) else {}
@@ -191,4 +220,10 @@ def generate_api_manual_cases(openapi_content: str, focus: List[str] | None = No
             )
         )
         idx += 1
-    return "\n\n".join(cases)
+    fallback = "\n\n".join(cases)
+    prompt = (
+        "Generate Allure manual API test cases for Cloud.ru Evolution Compute. "
+        "Include positive and negative cases, AAA with allure.step, and decorators as in TestOps. "
+        f"OpenAPI snippet: {json.dumps(spec)[:2000]}"
+    )
+    return await _maybe_llm(prompt, fallback)

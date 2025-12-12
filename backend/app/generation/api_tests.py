@@ -2,6 +2,11 @@ import json
 import textwrap
 from typing import Dict, Any, List
 
+from app.llm.client import CloudRuLLMClient
+from app.utils.logging import configure_logging
+
+logger = configure_logging()
+
 
 def parse_openapi_spec(openapi_content: str) -> Dict[str, Any]:
     try:
@@ -31,7 +36,24 @@ def _negative_status(responses: Dict[str, Any]) -> str:
     return "400"
 
 
-def generate_api_tests_from_spec(openapi_content: str) -> str:
+async def _maybe_llm(prompt: str, fallback: str) -> str:
+    try:
+        client = CloudRuLLMClient()
+        content = await client.chat_completion(
+            messages=[
+                {"role": "system", "content": "You generate runnable pytest API tests using httpx."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=3000,
+        )
+        if content and "httpx" in content:
+            return content
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("LLM API test generation fallback: %s", exc)
+    return fallback
+
+
+async def generate_api_tests_from_spec(openapi_content: str) -> str:
     spec = parse_openapi_spec(openapi_content)
     paths = spec.get("paths", {}) if isinstance(spec, dict) else {}
     lines: List[str] = [
@@ -78,4 +100,10 @@ def generate_api_tests_from_spec(openapi_content: str) -> str:
                 """
             )
         )
-    return "\n".join(lines)
+    fallback = "\n".join(lines)
+    prompt = (
+        "Generate pytest + httpx async API tests from this OpenAPI snippet. Include positive and negative (401/403/404/422) checks, "
+        "status assertions, and key field validations. "
+        f"Spec: {json.dumps(spec)[:2000]}"
+    )
+    return await _maybe_llm(prompt, fallback)

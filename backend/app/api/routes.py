@@ -37,7 +37,7 @@ async def chat(body: dict):
 async def generate_manual_ui(body: dict):
     requirements = body.get("requirements", "")
     run_dir = artifacts.create_run_folder()
-    code = generate_ui_manual_cases(requirements)
+    code = await generate_ui_manual_cases(requirements)
     artifacts.store_artifact(run_dir, "manual_ui.py", code)
     return {"run_id": run_dir.name, "code": code}
 
@@ -47,7 +47,7 @@ async def generate_manual_api(body: dict):
     spec = body.get("openapi", "")
     focus = body.get("focus", [])
     run_dir = artifacts.create_run_folder()
-    code = generate_api_manual_cases(spec, focus)
+    code = await generate_api_manual_cases(spec, focus)
     artifacts.store_artifact(run_dir, "manual_api.py", code)
     return {"run_id": run_dir.name, "code": code}
 
@@ -56,7 +56,7 @@ async def generate_manual_api(body: dict):
 async def generate_autotests_api(body: dict):
     spec = body.get("openapi", "")
     run_dir = artifacts.create_run_folder()
-    code = generate_api_tests_from_spec(spec)
+    code = await generate_api_tests_from_spec(spec)
     artifacts.store_artifact(run_dir, "api_tests.py", code)
     return {"run_id": run_dir.name, "code": code}
 
@@ -66,7 +66,7 @@ async def generate_autotests_ui(body: dict):
     requirements = body.get("requirements", "")
     manual_cases = body.get("manual_cases")
     run_dir = artifacts.create_run_folder()
-    code = generate_ui_autotests(requirements, manual_cases)
+    code = await generate_ui_autotests(requirements, manual_cases)
     artifacts.store_artifact(run_dir, "ui_tests.py", code)
     return {"run_id": run_dir.name, "code": code}
 
