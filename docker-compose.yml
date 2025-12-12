@@ -6,7 +6,7 @@ services:
       dockerfile: docker/backend.Dockerfile
     environment:
       - CLOUDRU_API_KEY=${CLOUDRU_API_KEY}
-      - CLOUDRU_BASE_URL=${CLOUDRU_BASE_URL:-https://foundation-models.api.cloud.ru}
+      - CLOUDRU_BASE_URL=${CLOUDRU_BASE_URL:-https://foundation-models.api.cloud.ru/v1}
       - DATA_PATH=/data
     volumes:
       - ./data:/data

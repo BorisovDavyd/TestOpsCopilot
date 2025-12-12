@@ -23,6 +23,15 @@ async def models():
     return await client.list_models()
 
 
+@router.post("/chat")
+async def chat(body: dict):
+    client = CloudRuLLMClient()
+    messages = body.get("messages", [])
+    model = body.get("model")
+    completion = await client.chat_completion(messages=messages, model=model)
+    return {"completion": completion}
+
+
 @router.post("/generate/manual/ui")
 async def generate_manual_ui(body: dict):
     requirements = body.get("requirements", "")
