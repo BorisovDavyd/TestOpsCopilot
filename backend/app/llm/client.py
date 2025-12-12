@@ -13,6 +13,15 @@ class CloudRuLLMClient:
     def __init__(self):
         self.settings = get_settings()
         self.base_url = self.settings.cloudru_base_url.rstrip("/")
+        # Cloud.ru foundation models API is external-only; guard against accidentally pointing to localhost.
+        from urllib.parse import urlparse
+
+        parsed = urlparse(self.base_url)
+        if parsed.hostname in {"localhost", "127.0.0.1", "::1"}:
+            logger.warning(
+                "Configured CLOUDRU_BASE_URL points to %s; overriding to official external endpoint", self.base_url
+            )
+            self.base_url = "https://foundation-models.api.cloud.ru"
         self.headers = {
             "Authorization": f"Bearer {self.settings.cloudru_api_key}" if self.settings.cloudru_api_key else "",
             "Content-Type": "application/json",
