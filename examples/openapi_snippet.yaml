@@ -1,0 +1,23 @@
+openapi: 3.0.0
+info:
+  title: Sample Compute API
+  version: '1.0'
+paths:
+  /vms:
+    get:
+      responses:
+        '200':
+          description: list vms
+    post:
+      responses:
+        '201':
+          description: create vm
+  /vms/{id}:
+    get:
+      responses:
+        '200':
+          description: get vm
+    delete:
+      responses:
+        '204':
+          description: delete vm
