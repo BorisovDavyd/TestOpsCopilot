@@ -1,0 +1,1 @@
+Landing page elements, add service button, categories, search, CPU/RAM sliders, price updates, max 99 instances, download PDF/JSON.
