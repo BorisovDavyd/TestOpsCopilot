@@ -1,0 +1,13 @@
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9fafb; }
+.app { padding: 1rem; }
+.tabs button { margin-right: 0.5rem; }
+.tabs .active { background: #0b5ed7; color: white; }
+textarea { width: 100%; min-height: 140px; margin: 0.5rem 0; }
+.output { background: #111; color: #0f0; padding: 1rem; min-height: 200px; white-space: pre-wrap; border-radius: 6px; }
+.history { display: flex; gap: 1rem; }
+.history-list { min-width: 260px; }
+.history-list ul { list-style: none; padding: 0; }
+.history-list li { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
+.actions { display: flex; align-items: center; gap: 0.5rem; }
+.hint { font-size: 0.9rem; color: #555; }
+.run-details details { margin-bottom: 0.5rem; }
