@@ -14,6 +14,8 @@ Monorepo MVP combining FastAPI backend and React frontend to generate and valida
 - Docker / docker-compose (optional runtime)
 
 ## Environment
+The Cloud.ru Foundation Models API is external (not hosted locally). You must provide valid credentials and network access to https://foundation-models.api.cloud.ru when running any generation or validation flows.
+
 Create `.env` (used by backend) with:
 ```
 CLOUDRU_API_KEY=your_key
