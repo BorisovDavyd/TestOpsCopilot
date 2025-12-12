@@ -1,16 +1,15 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
-from app.generation.manual_allure import generate_ui_manual_cases, generate_api_manual_cases
-from app.generation.api_tests import generate_api_tests_from_spec
-from app.generation.ui_tests import generate_ui_autotests
-from app.validation.standards import validation_report
-from app.storage import artifacts
 from app.llm.client import CloudRuLLMClient
+from app.orchestrator.runner import PipelineRunner
+from app.schemas.pipeline import RunInput
+from app.storage import artifacts
 from app.utils.logging import configure_logging
 
 router = APIRouter()
 logger = configure_logging()
+runner = PipelineRunner()
 
 
 @router.get("/health")
@@ -24,79 +23,51 @@ async def models():
     return await client.list_models()
 
 
-@router.post("/chat")
-async def chat(body: dict):
-    client = CloudRuLLMClient()
-    messages = body.get("messages", [])
-    model = body.get("model")
-    completion = await client.chat_completion(messages=messages, model=model)
-    return {"completion": completion}
+@router.post("/runs")
+async def create_run(body: RunInput, background_tasks: BackgroundTasks):
+    run_id = body.model or body.requirements or body.openapi
+    run_id = str(run_id)[:8] if run_id else None
+    base = artifacts.create_run_folder(run_id)
+    run_id = base.name
 
+    async def task():
+        try:
+            await runner.run(run_id, body)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Run %s failed: %s", run_id, exc)
+            fail_path = base / "error.txt"
+            fail_path.write_text(str(exc))
 
-@router.post("/generate/manual/ui")
-async def generate_manual_ui(body: dict):
-    requirements = body.get("requirements", "")
-    run_dir = artifacts.create_run_folder()
-    code = await generate_ui_manual_cases(requirements)
-    artifacts.store_artifact(run_dir, "manual_ui.py", code)
-    return {"run_id": run_dir.name, "code": code}
-
-
-@router.post("/generate/manual/api")
-async def generate_manual_api(body: dict):
-    spec = body.get("openapi", "")
-    focus = body.get("focus", [])
-    run_dir = artifacts.create_run_folder()
-    code = await generate_api_manual_cases(spec, focus)
-    artifacts.store_artifact(run_dir, "manual_api.py", code)
-    return {"run_id": run_dir.name, "code": code}
-
-
-@router.post("/generate/autotests/api")
-async def generate_autotests_api(body: dict):
-    spec = body.get("openapi", "")
-    run_dir = artifacts.create_run_folder()
-    code = await generate_api_tests_from_spec(spec)
-    artifacts.store_artifact(run_dir, "api_tests.py", code)
-    return {"run_id": run_dir.name, "code": code}
-
-
-@router.post("/generate/autotests/ui")
-async def generate_autotests_ui(body: dict):
-    requirements = body.get("requirements", "")
-    manual_cases = body.get("manual_cases")
-    run_dir = artifacts.create_run_folder()
-    code = await generate_ui_autotests(requirements, manual_cases)
-    artifacts.store_artifact(run_dir, "ui_tests.py", code)
-    return {"run_id": run_dir.name, "code": code}
-
-
-@router.post("/validate")
-async def validate(body: dict):
-    code = body.get("code", "")
-    run_dir = artifacts.create_run_folder()
-    report = validation_report(code)
-    artifacts.write_report(run_dir, report)
-    return {"run_id": run_dir.name, **report}
+    background_tasks.add_task(task)
+    return {"run_id": run_id}
 
 
 @router.get("/runs")
-async def runs():
-    return {"runs": artifacts.list_runs()}
+async def list_runs():
+    ids = artifacts.list_runs()
+    runs = []
+    for rid in ids:
+        run_file = artifacts.runs_root() / rid / "run.json"
+        if run_file.exists():
+            runs.append(run_file.read_text())
+        else:
+            runs.append(rid)
+    return {"runs": runs}
 
 
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str):
-    base = artifacts.ensure_data_dir() / run_id
-    if not base.exists():
+    try:
+        files = artifacts.load_run(run_id)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Run not found")
-    content = {p.name: p.read_text() for p in base.glob("*") if p.is_file()}
-    return {"run_id": run_id, "files": content}
+    return {"run_id": run_id, "files": files}
 
 
 @router.get("/runs/{run_id}/download")
 async def download(run_id: str):
-    base = artifacts.ensure_data_dir() / run_id
-    if not base.exists():
+    try:
+        zip_path = artifacts.zip_run(run_id)
+    except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Run not found")
-    return artifacts.download_response(base)
+    return FileResponse(zip_path, filename=f"{run_id}.zip")

@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     )
     request_timeout: int = Field(default=30, env="CLOUDRU_TIMEOUT")
     retries: int = Field(default=2, env="CLOUDRU_RETRIES")
-    data_path: str = Field(default="/workspace/TestOpsCopilot/data", env="DATA_PATH")
+    data_path: str = Field(default="./data", env="DATA_PATH")
 
     class Config:
         env_file = ".env"

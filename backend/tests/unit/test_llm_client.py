@@ -53,6 +53,7 @@ async def test_chat_completion(monkeypatch):
 @pytest.mark.asyncio
 async def test_missing_api_key(monkeypatch):
     import app.config as app_config
+
     monkeypatch.delenv("CLOUDRU_API_KEY", raising=False)
     app_config.get_settings.cache_clear()
     client = CloudRuLLMClient()

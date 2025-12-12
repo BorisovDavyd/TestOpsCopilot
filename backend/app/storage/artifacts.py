@@ -1,60 +1,68 @@
 import json
+import os
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 import zipfile
 
-from fastapi.responses import FileResponse
-
 from app.config import get_settings
 
 
-def ensure_data_dir() -> Path:
+def runs_root() -> Path:
     settings = get_settings()
-    path = Path(settings.data_path)
+    root = Path(settings.data_path or "./data") / "runs"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def create_run_folder(run_id: str | None = None) -> Path:
+    rid = run_id or str(uuid.uuid4())
+    path = runs_root() / rid
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def create_run_folder() -> Path:
-    run_id = str(uuid.uuid4())
-    base = ensure_data_dir() / run_id
-    base.mkdir(parents=True, exist_ok=True)
-    return base
+def write_json(path: Path, content: Dict[str, Any]) -> Path:
+    path.write_text(json.dumps(content, indent=2))
+    return path
 
 
-def store_artifact(run_dir: Path, filename: str, content: str) -> Path:
-    file_path = run_dir / filename
-    file_path.write_text(content)
-    return file_path
+def write_text(path: Path, content: str) -> Path:
+    path.write_text(content)
+    return path
 
 
-def write_report(run_dir: Path, report: Dict[str, Any]) -> Path:
-    report_path = run_dir / "report.json"
-    report_path.write_text(json.dumps(report, indent=2))
-    md_path = run_dir / "report.md"
-    md_path.write_text(report.get("markdown", ""))
-    return report_path
+def list_runs() -> List[str]:
+    root = runs_root()
+    return sorted([p.name for p in root.iterdir() if p.is_dir()])
 
 
-def zip_run(run_dir: Path) -> Path:
-    zip_path = run_dir.with_suffix('.zip')
+def load_run(run_id: str) -> Dict[str, Any]:
+    base = runs_root() / run_id
+    if not base.exists():
+        raise FileNotFoundError(run_id)
+    files = {}
+    for file in base.rglob("*"):
+        if file.is_file():
+            rel = str(file.relative_to(base))
+            try:
+                files[rel] = file.read_text()
+            except UnicodeDecodeError:
+                files[rel] = str(file)
+    return files
+
+
+def zip_run(run_id: str) -> Path:
+    base = runs_root() / run_id
+    zip_path = base.with_suffix('.zip')
     with zipfile.ZipFile(zip_path, 'w') as zf:
-        for file in run_dir.glob('*'):
-            zf.write(file, arcname=file.name)
+        for file in base.rglob('*'):
+            if file.is_file():
+                zf.write(file, arcname=file.relative_to(base))
     return zip_path
 
 
-def list_runs() -> List[Dict[str, Any]]:
-    base = ensure_data_dir()
-    runs: List[Dict[str, Any]] = []
-    for path in sorted(base.glob('*')):
-        if path.is_dir():
-            files = {p.name: p.read_text() for p in path.glob('*') if p.is_file()}
-            runs.append({"id": path.name, "files": files})
-    return runs
+def timestamp() -> str:
+    return datetime.utcnow().isoformat() + "Z"
 
-
-def download_response(run_dir: Path) -> FileResponse:
-    zip_path = zip_run(run_dir)
-    return FileResponse(path=zip_path, filename=zip_path.name, media_type="application/zip")
