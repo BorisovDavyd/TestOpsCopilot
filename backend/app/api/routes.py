@@ -1,5 +1,6 @@
-from fastapi import APIRouter, UploadFile, File
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+
 from app.generation.manual_allure import generate_ui_manual_cases, generate_api_manual_cases
 from app.generation.api_tests import generate_api_tests_from_spec
 from app.generation.ui_tests import generate_ui_autotests
@@ -79,6 +80,11 @@ async def validate(body: dict):
     return {"run_id": run_dir.name, **report}
 
 
+@router.get("/runs")
+async def runs():
+    return {"runs": artifacts.list_runs()}
+
+
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str):
     base = artifacts.ensure_data_dir() / run_id
@@ -93,5 +99,4 @@ async def download(run_id: str):
     base = artifacts.ensure_data_dir() / run_id
     if not base.exists():
         raise HTTPException(status_code=404, detail="Run not found")
-    zip_path = artifacts.zip_run(base)
-    return {"zip": str(zip_path)}
+    return artifacts.download_response(base)

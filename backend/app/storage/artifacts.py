@@ -1,9 +1,10 @@
 import json
-import os
 import uuid
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 import zipfile
+
+from fastapi.responses import FileResponse
 
 from app.config import get_settings
 
@@ -42,3 +43,18 @@ def zip_run(run_dir: Path) -> Path:
         for file in run_dir.glob('*'):
             zf.write(file, arcname=file.name)
     return zip_path
+
+
+def list_runs() -> List[Dict[str, Any]]:
+    base = ensure_data_dir()
+    runs: List[Dict[str, Any]] = []
+    for path in sorted(base.glob('*')):
+        if path.is_dir():
+            files = {p.name: p.read_text() for p in path.glob('*') if p.is_file()}
+            runs.append({"id": path.name, "files": files})
+    return runs
+
+
+def download_response(run_dir: Path) -> FileResponse:
+    zip_path = zip_run(run_dir)
+    return FileResponse(path=zip_path, filename=zip_path.name, media_type="application/zip")

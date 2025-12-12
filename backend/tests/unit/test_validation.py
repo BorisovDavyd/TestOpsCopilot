@@ -11,18 +11,35 @@ def test_validate_detects_missing_class():
     assert any(issue["type"] == "structure" for issue in result["issues"])
 
 
-def test_validate_passes_with_class_and_decorators():
+def test_validate_finds_decorator_and_aaa_issues():
+    code = """
+import allure
+import pytest
+class TestSample:
+    def sample(self):
+        pass
+    """
+    result = validate_manual_code(code)
+    issue_types = {issue["type"] for issue in result["issues"]}
+    assert {"decorator", "aaa", "naming"}.issubset(issue_types)
+
+
+def test_validate_detects_missing_allure_step():
     code = """
 import allure
 import pytest
 @allure.manual
-@allure.title("Sample")
-@allure.suite("manual")
 @pytest.mark.manual
+@allure.suite("manual")
 class TestSample:
+    @allure.title("ok")
     def test_one(self):
         # Arrange
         pass
+        # Act
+        pass
+        # Assert
+        pass
     """
     result = validate_manual_code(code)
-    assert result["issues"]
+    assert any(issue["type"] == "style" for issue in result["issues"])
